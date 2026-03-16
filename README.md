@@ -48,9 +48,9 @@ The service reads configuration from environment variables (optionally via a `.e
 
 - **Required:**
   - `OPTICODDS_API_KEY` — your OpticOdds API key
+  - `OPTICODDS_BASE_URL` — base URL for the API (defaults to `https://api.opticodds.com/api/v3`)
 
 - **Optional (sensible defaults are provided):**
-  - `OPTICODDS_BASE_URL` — base URL for the API (defaults to `https://api.opticodds.com/api/v3`)
   - `DEFAULT_SPORT` — sport identifier (defaults to `soccer`)
   - `DEFAULT_MARKET` — market identifier (defaults to `moneyline`)
   - `DEFAULT_SPORTSBOOKS` — comma-separated sportsbooks list (defaults to `DraftKings`)
@@ -58,7 +58,8 @@ The service reads configuration from environment variables (optionally via a `.e
 Example `.env` file:
 
 ```env
-OPTICODDS_API_KEY=your_real_key_here
+OPTICODDS_API_KEY=your_api_key
+OPTICODDS_BASE_URL=https://api.opticodds.com/api/v3/
 ```
 
 You can also export `OPTICODDS_API_KEY` directly in your shell instead of using `.env`.
