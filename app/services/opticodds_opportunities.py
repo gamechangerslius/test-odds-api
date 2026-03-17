@@ -1,4 +1,5 @@
 import logging
+import asyncio
 from datetime import datetime
 from typing import Any, Dict, Iterable, List, Optional
 
@@ -17,7 +18,8 @@ class OpticOddsOpportunitiesService(BaseOpportunitiesService):
         self._client = client
 
     async def close(self) -> None:
-        await self._client.close()
+        # Client lifecycle is owned by the FastAPI app lifespan.
+        return None
 
     async def get_opportunities(
         self,
@@ -69,17 +71,26 @@ class OpticOddsOpportunitiesService(BaseOpportunitiesService):
             logger.info("No fixtures with valid IDs after filtering")
             return []
 
-        chunk_size = 5
-        fixtures_odds: list[Dict[str, Any]] = []
-        for idx in range(0, len(fixture_ids), chunk_size):
-            chunk_ids = fixture_ids[idx : idx + chunk_size]
-            chunk_odds = await self._client.get_fixtures_odds(
-                fixture_ids=chunk_ids,
-                sportsbooks=requested_sportsbooks,
-                markets=requested_markets,
-            )
-            fixtures_odds.extend(chunk_odds)
-        print(fixtures_odds)
+        chunk_size = max(1, int(self._settings.opticodds_odds_chunk_size))
+        max_concurrency = max(1, int(self._settings.opticodds_odds_max_concurrency))
+        semaphore = asyncio.Semaphore(max_concurrency)
+
+        async def fetch_chunk(chunk_ids: list[str]) -> list[Dict[str, Any]]:
+            async with semaphore:
+                return await self._client.get_fixtures_odds(
+                    fixture_ids=chunk_ids,
+                    sportsbooks=requested_sportsbooks,
+                    markets=requested_markets,
+                )
+
+        chunks: list[list[str]] = [
+            fixture_ids[idx : idx + chunk_size]
+            for idx in range(0, len(fixture_ids), chunk_size)
+        ]
+        chunk_results = await asyncio.gather(*(fetch_chunk(c) for c in chunks))
+        fixtures_odds: list[Dict[str, Any]] = [
+            item for sub in chunk_results for item in sub
+        ]
 
         opportunities: list[Opportunity] = []
         fixtures_by_id: Dict[str, Dict[str, Any]] = {
@@ -87,8 +98,6 @@ class OpticOddsOpportunitiesService(BaseOpportunitiesService):
             for fixture in filtered_fixtures
             if fixture.get("id") is not None
         }
-        print(page)
-        print(fixtures_by_id)
 
         for fixture_with_odds in fixtures_odds:
             fixture_id = fixture_with_odds.get("id")

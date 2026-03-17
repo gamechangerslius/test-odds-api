@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     default_sportsbooks: list[str] = ["DraftKings"]
 
     request_timeout_seconds: float = 5.0
+    opticodds_odds_chunk_size: int = 5
+    opticodds_odds_max_concurrency: int = 4
 
     class Config:
         env_file = ".env"
